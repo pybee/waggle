@@ -28,12 +28,12 @@ Prepare and upload Docker images for use by BeeKeeper.
 Quickstart
 ----------
 
-Create a directory, and in that directory place a `Dockerfile` and any
-files required by the `Dockerfile` in that directory.
+Create a directory, and in that directory place a `Dockerfile`, along with any
+files required by the `Dockerfile`.
 
 Optionally, you can also put an `ecs.json` file in the directory. The
 `ecs.json` file should contains a JSON definition of any ECR container
-settings that you want task to have.  For example, if you wanted to specify a
+settings that you want task to have. For example, if you wanted to specify a
 particular memory and CPU usage profile for the task, you would specify::
 
     {
@@ -41,10 +41,13 @@ particular memory and CPU usage profile for the task, you would specify::
         cpu: 8192
     }
 
+These settings will be used as overrides for the default container settings
+used by BeeKeeper.
+
 Then, create a file named `.env` in your current working directory that contains
 the following content::
 
-    AWS_ECS_REGION_NAME=<Your AWS region (e.g., us-west-2)
+    AWS_ECS_REGION_NAME=<Your AWS region (e.g., us-west-2)>
     AWS_ACCESS_KEY_ID=<Your AWS access key>
     AWS_SECRET_ACCESS_KEY=<Your AWS secret access key>
 
@@ -54,21 +57,57 @@ Then, run::
 
 This will:
 
-    * Log into AWS ECR
-    * Find (or create) an AWS ECR repository for your image
-    * Build the Docker image
-    * Tag the image for publication to AWS ECR
-    * Push the image to AWS ECR
-    * Register (or update) an AWS ECS task that uses the image.
+* Log into AWS ECR
+* Find (or create) an AWS ECR repository for your image
+* Build the Docker image
+* Tag the image for publication to AWS ECR
+* Push the image to AWS ECR
+* Register (or update) an AWS ECS task that uses the image.
 
 If your Docker image is contained in a directory called `myimage`, your
-BeeKeeper configuration will not be able to reference a task image of
+BeeKeeper configuration will now be able to reference a task image of
 `myimage`.
 
-..Documentation
-..-------------
 
-..Documentation for Waggle can be found on `Read The Docs`_.
+Testing
+-------
+
+Before you waggle your task, you're probably going to want to test it.
+
+
+* To build an image locally::
+
+    $ cd <directory with a Dockerfile in it>
+    $ docker build -t <namespace>/<image> .
+
+* To run an image locally::
+
+    $ docker run <namespace>/<image>
+
+  If your docker image requires environment variables (all the Beekeeper ones do),
+  you may find it easier to put all those variables in a file (e.g., `.env`),
+  and run::
+
+    $ docker run --env-file=.env <namespace>/<image>
+
+  To temporarily define a variable for the duration of the test::
+
+    $ VARIABLE=value docker run --env-file=.env <namespace>/<image>
+
+* To clean up afterwards, run::
+
+    $ docker ps -a
+
+  to list all the containers that have been executed, and::
+
+    $ docker rm $(docker ps -aq)
+
+  to remove all the stale containers.
+
+.. Documentation
+.. -------------
+
+.. Documentation for Waggle can be found on `Read The Docs`_.
 
 Community
 ---------
