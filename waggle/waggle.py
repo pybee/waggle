@@ -107,7 +107,7 @@ def _register(task_name, full_path, options):
         print("Pushing Docker image to AWS...")
         subprocess.run([
                 'docker', 'push',
-                "%s:%s" % (uri, tag),
+                "%s:%s" % (uri, options.tag),
             ],
             cwd=full_path,
             check=True
