@@ -1,7 +1,9 @@
+import json
 import os
 import re
 import subprocess
 import sys
+
 
 from botocore.exceptions import ClientError
 import boto3
@@ -131,7 +133,11 @@ def _register(task_name, full_path, options):
 
         try:
             with open(os.path.join(full_path, 'ecs.json')) as data:
-                definition.update(json.load(data))
+                config = json.load(data)
+                print("ECS configuration overrides:")
+                for key, value in sorted(config.items()):
+                    print("    %s: %s" % (key, value))
+                definition.update(config)
         except IOError:
             print("Couldn't load ecs.json configuration; using defaults")
 
