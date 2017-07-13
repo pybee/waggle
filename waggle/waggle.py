@@ -41,17 +41,20 @@ def register(options):
         return
 
     print("Logging into ECR...")
-    result = subprocess.run([
+    proc = subprocess.Popen([
             'aws', 'ecr', 'get-login',
             '--no-include-email',
             '--region', options.AWS_ECS_REGION_NAME
         ],
         stdout=subprocess.PIPE
     )
-    subprocess.run(result.stdout.decode('utf-8').strip().split(' '),
+    result, errors = proc.communicate()
+
+    proc = subprocess.Popen(
+        result.decode('utf-8').strip().split(' '),
         cwd=full_path,
-        check=True
     )
+    proc.wait()
 
     registered = []
     for task_name, full_path in tasks:
@@ -72,14 +75,14 @@ def _register(task_name, full_path, options):
         )
         print("Registering %s as an AWS ECS task..." % repository_name)
         print("Building local Docker image for %s..." % repository_name)
-        subprocess.run([
+        proc = subprocess.Popen([
                 'docker', 'build',
                 "-t", repository_name,
                 '.'
             ],
             cwd=full_path,
-            check=True
         )
+        proc.wait()
 
         print("Looking up AWS ECR repository URI...")
         aws_session = boto3.session.Session(
@@ -97,23 +100,23 @@ def _register(task_name, full_path, options):
         print("   ECR repository URI is", uri)
 
         print("Tagging Docker image for publication...")
-        subprocess.run([
+        proc = subprocess.Popen([
                 'docker', 'tag',
                 "%s:%s" % (repository_name, options.tag),
                 "%s:%s" % (uri, options.tag),
             ],
             cwd=full_path,
-            check=True
         )
+        proc.wait()
 
         print("Pushing Docker image to AWS...")
-        subprocess.run([
+        proc = subprocess.Popen([
                 'docker', 'push',
                 "%s:%s" % (uri, options.tag),
             ],
             cwd=full_path,
-            check=True
         )
+        proc.wait()
 
         print("Registering ECS task...")
         definition = {
