@@ -33,6 +33,8 @@ setup(
     },
     install_requires=[
         'github3.py==0.9.6',
+        'boto3==1.4.4',
+        'awscli==1.11.117',
     ],
     license='New BSD',
     classifiers=[
