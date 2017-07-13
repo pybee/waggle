@@ -17,8 +17,8 @@ Waggle
 .. image:: https://img.shields.io/pypi/l/waggle.svg
     :target: https://github.com/pybee/waggle/blob/master/LICENSE
 
-.. image:: https://travis-ci.org/pybee/waggle.svg?branch=master
-    :target: https://travis-ci.org/pybee/waggle
+.. image:: https://beekeeper.herokuapp.com/projects/pybee/waggle/shield
+    :target: https://beekeeper.herokuapp.com/projects/pybee/waggle
 
 .. image:: https://badges.gitter.im/pybee/general.svg
     :target: https://gitter.im/pybee/general
