@@ -11,11 +11,11 @@ import boto3
 from argparse import ArgumentParser
 
 
-def register(options):
+def register(namespace, tag, region, aws_access_key_id, aws_secret_access_key, *dirnames):
     bad_names = []
     not_a_dir = []
     tasks = []
-    for dirname in options.dirnames:
+    for dirname in dirnames:
         full_path = os.path.abspath(dirname)
         task_name = os.path.basename(full_path)
         if re.match('[^-_A-Za-z0-9]', task_name):
@@ -44,7 +44,7 @@ def register(options):
     proc = subprocess.Popen([
             'aws', 'ecr', 'get-login',
             '--no-include-email',
-            '--region', options.AWS_ECS_REGION_NAME
+            '--region', region
         ],
         stdout=subprocess.PIPE
     )
@@ -58,7 +58,7 @@ def register(options):
 
     registered = []
     for task_name, full_path in tasks:
-        _register(task_name, full_path, options)
+        _register(full_path, namespace, task_name, tag, region, aws_access_key_id, aws_secret_access_key)
         registered.append(task_name)
 
     print()
@@ -67,10 +67,10 @@ def register(options):
         print('    * %s' % task)
 
 
-def _register(task_name, full_path, options):
+def _register(full_path, namespace, task_name, tag, region, aws_access_key_id, aws_secret_access_key):
     try:
         repository_name = "%s/%s" % (
-            options.namespace,
+            namespace,
             task_name
         )
         print("Registering %s as an AWS ECS task..." % repository_name)
@@ -86,9 +86,9 @@ def _register(task_name, full_path, options):
 
         print("Looking up AWS ECR repository URI...")
         aws_session = boto3.session.Session(
-            region_name=options.AWS_ECS_REGION_NAME,
-            aws_access_key_id=options.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=options.AWS_SECRET_ACCESS_KEY,
+            region_name=region,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
         )
         ecr = aws_session.client('ecr')
         try:
@@ -102,8 +102,8 @@ def _register(task_name, full_path, options):
         print("Tagging Docker image for publication...")
         proc = subprocess.Popen([
                 'docker', 'tag',
-                "%s:%s" % (repository_name, options.tag),
-                "%s:%s" % (uri, options.tag),
+                "%s:%s" % (repository_name, tag),
+                "%s:%s" % (uri, tag),
             ],
             cwd=full_path,
         )
@@ -112,7 +112,7 @@ def _register(task_name, full_path, options):
         print("Pushing Docker image to AWS...")
         proc = subprocess.Popen([
                 'docker', 'push',
-                "%s:%s" % (uri, options.tag),
+                "%s:%s" % (uri, tag),
             ],
             cwd=full_path,
         )
@@ -127,8 +127,8 @@ def _register(task_name, full_path, options):
             'logConfiguration': {
                 'logDriver': 'awslogs',
                 'options': {
-                    'awslogs-group': options.namespace,
-                    'awslogs-region': options.AWS_ECS_REGION_NAME,
+                    'awslogs-group': namespace,
+                    'awslogs-region': region,
                     'awslogs-stream-prefix': task_name
                 }
             }
@@ -186,14 +186,17 @@ def main():
         pass
 
     try:
-        options.AWS_ECS_REGION_NAME = os.environ['AWS_ECS_REGION_NAME']
-        options.AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-        options.AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
+        register(
+            options.namespace,
+            options.tag,
+            os.environ['AWS_REGION'],
+            os.environ['AWS_ACCESS_KEY_ID'],
+            os.environ['AWS_SECRET_ACCESS_KEY'],
+            *options.dirnames
+        )
     except KeyError as e:
         print("AWS environment variable %s not found" % e)
         sys.exit(1)
-
-    register(options)
 
 
 if __name__ == '__main__':
