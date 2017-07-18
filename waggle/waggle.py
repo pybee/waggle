@@ -27,18 +27,18 @@ def register(namespace, tag, region, aws_access_key_id, aws_secret_access_key, *
 
     if bad_names:
         print()
-        print("The following tasks will not be valid ECS tasks:")
+        print("The following tasks will not be valid ECS tasks:", file=sys.stderr)
         for name in bad_names:
-            print("    *", name)
+            print("    *", name, file=sys.stderr)
 
     if not_a_dir:
         print()
-        print("The following paths don't appear to be Docker configurations:")
+        print("The following paths don't appear to be Docker configurations:", file=sys.stderr)
         for name in not_a_dir:
-            print("    *", name)
+            print("    *", name, file=sys.stderr)
 
     if bad_names or not_a_dir:
-        return
+        return bad_names + not_a_dir
 
     print("Logging into ECR...")
     proc = subprocess.Popen([
@@ -186,7 +186,7 @@ def main():
         pass
 
     try:
-        register(
+        failed = register(
             options.namespace,
             options.tag,
             os.environ['AWS_REGION'],
@@ -194,6 +194,9 @@ def main():
             os.environ['AWS_SECRET_ACCESS_KEY'],
             *options.dirnames
         )
+
+        if failed:
+            sys.exit(2)
     except KeyError as e:
         print("AWS environment variable %s not found" % e)
         sys.exit(1)
