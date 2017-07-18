@@ -47,7 +47,7 @@ used by BeeKeeper.
 Then, create a file named `.env` in your current working directory that contains
 the following content::
 
-    AWS_ECS_REGION_NAME=<Your AWS region (e.g., us-west-2)>
+    AWS_REGION=<Your AWS region (e.g., us-west-2)>
     AWS_ACCESS_KEY_ID=<Your AWS access key>
     AWS_SECRET_ACCESS_KEY=<Your AWS secret access key>
 
@@ -93,6 +93,10 @@ Before you waggle your task, you're probably going to want to test it.
   To temporarily define a variable for the duration of the test::
 
     $ VARIABLE=value docker run --env-file=.env <namespace>/<image>
+
+* To start the container with an interactive prompt:
+
+    $ docker run -it --env-file=.env <namespace>/<image> /bin/bash
 
 * To clean up afterwards, run::
 
