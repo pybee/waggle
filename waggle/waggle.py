@@ -11,6 +11,78 @@ import boto3
 from argparse import ArgumentParser
 
 
+def find_tasks(dirnames):
+    "Find all the Docker directories that are subdirectories of the given list"
+    tasks = []
+    for dirname in dirnames:
+        for path, subdirs, files in os.walk(dirname):
+            if 'Dockerfile' in files:
+                tasks.append(path)
+    return tasks
+
+
+def dependency(namespace, dirname):
+    "Extract the dependency of the task described in a given directory"
+    with open(os.path.abspath(os.path.join(dirname, 'Dockerfile'))) as dfile:
+        from_lines = [
+            line[5:].strip()
+            for line in dfile
+            if line.startswith('FROM ')
+        ]
+        if len(from_lines) == 1:
+            if from_lines[0].startswith(namespace + '/'):
+                return from_lines[0]
+
+        return None
+
+
+def order_by_dependency(namespace, dirnames):
+    "Examine all the directories in `dirnames`, and order by dependency"
+
+    dependencies = [
+        (dirname, dependency(namespace, dirname))
+        for dirname in dirnames
+    ]
+    tasks = set('%s/%s' % (namespace, os.path.basename(d)) for d in dirnames)
+
+    # Now sort the tasks to ensure that dependencies are met. This
+    # is done by repeatedly iterating over the input list of tasks.
+    # If the dependency of a given task is on the final list,
+    # that task is promoted to the end of the final list. This process
+    # continues until the input list is empty, or we do a full iteration
+    # over the input models without promoting a model to the final list.
+    # If we do a full iteration without a promotion, that means there are
+    # circular dependencies in the list.
+    ordered = []
+    resolved = set()
+    while dependencies:
+        skipped = []
+        changed = False
+        while dependencies:
+            dirname, dep = dependencies.pop()
+            task = '%s/%s' % (namespace, os.path.basename(dirname))
+
+            # If the dependency is already on the final model list, or
+            # not on the original serialization list, then we've found
+            # another model with a satisfied dependency.
+            if dep not in tasks or dep in resolved:
+                resolved.add(task)
+                ordered.append(dirname)
+                changed = True
+            else:
+                skipped.append((dirname, dep))
+        if not changed:
+            print(
+                '\n'
+                "Can't resolve dependencies for tasks in %s." %
+                ', '.join(dirname for dirname, dep in sorted(skipped))
+            )
+            sys.exit(13)
+        dependencies = skipped
+
+    return ordered
+
+
 def register(namespace, tag, region, aws_access_key_id, aws_secret_access_key, *dirnames):
     bad_names = []
     not_a_dir = []
@@ -39,6 +111,8 @@ def register(namespace, tag, region, aws_access_key_id, aws_secret_access_key, *
 
     if bad_names or not_a_dir:
         return bad_names + not_a_dir
+
+    print("Waggling %s..." % ', '.join(dirnames))
 
     print("Logging into ECR...")
     proc = subprocess.Popen([
@@ -172,7 +246,10 @@ def main():
         '--namespace', default='beekeeper', dest='namespace',
         help='Specify the namespace to use for AWS services.',
     )
-    parser.add_argument('dirnames', metavar='dirname', nargs='+', help='Docker image directories to register.')
+    parser.add_argument(
+        'dirnames', metavar='dirname', nargs='+',
+        help='Directories containing Docker image to register.'
+    )
     options = parser.parse_args()
 
     # Load sensitive environment variables from a .env file
@@ -185,6 +262,14 @@ def main():
     except FileNotFoundError:
         pass
 
+    tasks = find_tasks(options.dirnames)
+    ordered = order_by_dependency(options.namespace, tasks)
+
+    if not tasks:
+        print()
+        print("Couldn't find any tasks in %s" % ', '.join(options.dirnames), file=sys.stderr)
+        sys.exit(2)
+
     try:
         failed = register(
             options.namespace,
@@ -192,11 +277,11 @@ def main():
             os.environ['AWS_REGION'],
             os.environ['AWS_ACCESS_KEY_ID'],
             os.environ['AWS_SECRET_ACCESS_KEY'],
-            *options.dirnames
+            *ordered
         )
 
         if failed:
-            sys.exit(2)
+            sys.exit(3)
     except KeyError as e:
         print("AWS environment variable %s not found" % e)
         sys.exit(1)
