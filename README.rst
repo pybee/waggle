@@ -92,7 +92,11 @@ Before you waggle your task, you're probably going to want to test it.
 
   To temporarily define a variable for the duration of the test::
 
-    $ VARIABLE=value docker run --env-file=.env <namespace>/<image>
+    $ VARIABLE=value docker run -e VARIABLE <namespace>/<image>
+
+  To mount a local directory as the source code directory::
+
+    $ docker run -v `pwd`:/app/src <namespace>/<image>
 
 * To start the container with an interactive prompt:
 
